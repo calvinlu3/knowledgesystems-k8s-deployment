@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "4"
+  creationTimestamp: null
+  generation: 1
+  labels:
+    run: gn-vep
+  name: gn-vep
+  # namespace: oncokb-dev
+spec:
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      run: gn-vep
+  serviceName: gn-vep
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: gn-vep
+    spec:
+      containers:
+      - env:
+        - name: SERVER_PORT
+          value: "8888"
+        - name: JAVA_OPTS
+          value: '-Dverbose=true'
+        image: genomenexus/gn-vep:05c7b326506ad9ec46cdc23be50f871730eb8c42
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: genie-vep-pvc
+          subPath: cache
+          mountPath: /opt/vep/.vep
+        name: gn-vep
+        ports:
+        - containerPort: 8888
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 1
+            memory: 22Gi
+          limits:
+            cpu: 4
+            memory: 30Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      # download data from s3 bucket (takes ~15m).
+      # TODO: It might be better to create a volume from an existing snapshot.
+      initContainers:
+      - name: download-vep-cache
+        image: busybox:1.30.0
+        command: ['sh', '-c',
+            'cd /vep_data; mkdir -p cache/tmp; chmod a+w cache/tmp; wget https://genome-nexus-vep-data.s3.amazonaws.com/file_list.txt; for f in $(cat file_list.txt); do mkdir -p $(dirname $f); wget https://genome-nexus-vep-data.s3.amazonaws.com/$f -O $f; done; cd cache; tar xvf homo_sapiens_vep_98_GRCh37.tar'
+        ]
+        volumeMounts:
+        - name: genie-vep-pvc
+          mountPath: /vep_data
+      imagePullSecrets:
+      - name: regcred
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+  volumeClaimTemplates:
+  - metadata:
+      name: genie-vep-pvc
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 35Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    run: gn-vep
+    app: gn-vep
+  name: gn-vep
+  # namespace: oncokb-dev
+  # selfLink: /api/v1/namespaces/genome-nexus/services/gn-vep
+spec:
+  ports:
+  - port: 80
+    name: http
+    targetPort: 8888
+  - port: 443
+    name: https
+    targetPort: 8888
+  selector:
+    run: gn-vep
+  type: ClusterIP
