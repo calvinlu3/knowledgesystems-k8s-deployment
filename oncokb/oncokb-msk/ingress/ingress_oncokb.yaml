@@ -9,6 +9,7 @@ spec:
         - oncokb.dev.aws.mskcc.org
         - grafana.oncokb.dev.aws.mskcc.org
         - beta.core.oncokb.dev.aws.mskcc.org
+        - gn.oncokb.dev.aws.mskcc.org
   rules:
     - host: "www.oncokb.dev.aws.mskcc.org"
       http:
@@ -38,6 +39,16 @@ spec:
             backend:
               service:
                 name: oncokb-core-beta-cluster
+                port:
+                  number: 8888
+    - host: "gn.oncokb.dev.aws.mskcc.org"
+      http:
+        paths:
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: genome-nexus-cached
                 port:
                   number: 8888
     - host: "grafana.oncokb.dev.aws.mskcc.org"

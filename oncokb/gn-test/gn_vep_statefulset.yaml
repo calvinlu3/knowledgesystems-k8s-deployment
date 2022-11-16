@@ -8,7 +8,7 @@ metadata:
   labels:
     run: gn-vep
   name: gn-vep
-  # namespace: oncokb-dev
+  namespace: oncokb-dev
 spec:
   podManagementPolicy: Parallel
   replicas: 1
@@ -43,10 +43,8 @@ spec:
         resources:
           requests:
             cpu: 1
-            memory: 22Gi
           limits:
             cpu: 4
-            memory: 30Gi
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
       # download data from s3 bucket (takes ~15m).
@@ -55,7 +53,7 @@ spec:
       - name: download-vep-cache
         image: busybox:1.30.0
         command: ['sh', '-c',
-            'cd /vep_data; mkdir -p cache/tmp; chmod a+w cache/tmp; wget https://genome-nexus-vep-data.s3.amazonaws.com/file_list.txt; for f in $(cat file_list.txt); do mkdir -p $(dirname $f); wget https://genome-nexus-vep-data.s3.amazonaws.com/$f -O $f; done; cd cache; tar xvf homo_sapiens_vep_98_GRCh37.tar'
+            'cd /vep_data ;  mkdir -p cache/tmp; chmod a+w cache/tmp; wget https://genome-nexus-vep-data.s3.amazonaws.com/file_list.txt; for f in $(cat file_list.txt); do mkdir -p $(dirname $f); wget https://genome-nexus-vep-data.s3.amazonaws.com/$f -O $f; done; cd cache; tar xvf homo_sapiens_vep_98_GRCh37.tar; wget https://oncokb.s3.amazonaws.com/gn-vep-data/impact.sorted.for_vep_350000_exact.txt'
         ]
         volumeMounts:
         - name: genie-vep-pvc
@@ -83,7 +81,7 @@ metadata:
     run: gn-vep
     app: gn-vep
   name: gn-vep
-  # namespace: oncokb-dev
+  namespace: oncokb-dev
   # selfLink: /api/v1/namespaces/genome-nexus/services/gn-vep
 spec:
   ports:
