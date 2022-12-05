@@ -9,7 +9,7 @@ metadata:
     run: oncokb-core-beta
   name: oncokb-core-beta
 spec:
-  replicas: 4
+  replicas: 1
   selector:
     matchLabels:
       run: oncokb-core-beta
@@ -31,11 +31,11 @@ spec:
                 name: oncokb-core-beta
             - configMapRef:
                 name: oncokb-github
-            - configMapRef:
-                name: oncokb-sentinel-redis-no-persistence
+            # - configMapRef:
+            #     name: oncokb-cluster-redis-temp
             - configMapRef:
                 name: oncokb-db-msk-dev-rds
-          image: oncokb/oncokb:3.10.0
+          image: oncokb/oncokb:3.11.0
           command: ["java"]
           args: [
             # from https://developers.redhat.com/blog/2017/04/04/openjdk-and-containers/
@@ -60,10 +60,10 @@ spec:
             "-Djdbc.url=$(DB_URL)/oncokb_core_beta?useUnicode=yes&characterEncoding=UTF-8&useSSL=false",
             "-Djdbc.username=$(DB_USERNAME)",
             "-Djdbc.password=$(DB_PASSWORD)",
-            "-Dgenomenexus.api=https://www.genomenexus.org/",
+            "-Doncokb_transcript.url=https://transcript.oncokb.dev.aws.mskcc.org",
             "-Doncokb_data.access_token=$(ONCOKBDEV_PRIVATE_ACCESS_TOKEN)",
             "-Doncokb_transcript.token=$(ONCOKB_TRANSCRIPT_TOKEN)",
-            "-Dredis.enable=true",
+            "-Dredis.enable=false",
             "-Dredis.type=$(REDIS_TYPE)",
             "-Dredis.address=$(REDIS_ADDRESS)",
             "-Dredis.password=$(REDIS_PASSWROD)",
@@ -79,6 +79,9 @@ spec:
             "8888",
             "/app.war"
           ]
+          volumeMounts:
+          - mountPath: /usr/local/openjdk-8/lib/security
+            name: cacerts
           imagePullPolicy: Always
           # use actionable variants endpoint to cache everything
           readinessProbe:
@@ -111,6 +114,23 @@ spec:
               memory: 2Gi
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
+      initContainers:
+      - name: add-msk-public-cert-to-cacerts
+        image: openjdk:8-jre
+        command: ['bash', '-c',
+            'cp -R /usr/local/openjdk-8/lib/security/* /cacerts/; keytool -import -noprompt -trustcacerts -alias mskrootca -file /security/tls.crt -keystore /cacerts/cacerts -storepass changeit'
+        ]
+        volumeMounts:
+        - mountPath: /cacerts
+          name: cacerts
+        - mountPath: /security
+          name: msk-public-cert
+      volumes:
+      - name: cacerts
+        emptyDir: {}
+      - name: msk-public-cert
+        secret:
+          secretName: msk-public-cert
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
